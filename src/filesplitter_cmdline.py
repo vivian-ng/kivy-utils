@@ -1,5 +1,5 @@
 '''
-File Splitter App
+File Splitter App (command line version)
 
 This app takes in a source file, and splits it into two separate files, with
 odd lines in the first target file, and even lines in the second target file.
@@ -9,12 +9,21 @@ lines, with source language text in one line, and the target language text
 in the next line. This app will split the corpus into two files, one containing
 the source language text, and the other containing the target language text.
 
-Created on Feb 7, 2017
+Usage:
+    python filesplitter_cmdline.py <source_file> <target1_file> <target2_file>
+    
+    where:
+        source_file:    File to split, containing source language text in one
+                        line, and target language text in another line.
+        target1_file:   Name of file to output source language text to.
+        target2_file:   Name of file to output target language text to.
+
+Created on Feb 15, 2017
 
 @author: vivian
 '''
-from functools import partial
 import sys
+from __future__ import print_function
 
 
 def split_file(source_filename, target1_filename, target2_filename):
@@ -41,7 +50,11 @@ def split_file(source_filename, target1_filename, target2_filename):
 
 
 def main():
-    split_file(sys.argv[1], sys.argv[2], sys.argv[3])
+    if len(sys.argv) < 4:
+        print("Usage:  python filesplitter_cmdline.py <source_file> <target1_file> <target2_file>")
+    else:
+        split_file(sys.argv[1], sys.argv[2], sys.argv[3])
+
     
 if __name__ == "__main__":
     main()
