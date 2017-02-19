@@ -11,6 +11,9 @@ the source language text, and the other containing the target language text.
 
 Created on Feb 7, 2017
 
+Feb 19, 2017:   Added checkbox to allow appending to target files.
+                Add Exit button.
+
 @author: vivian
 '''
 from functools import partial
@@ -23,6 +26,7 @@ from kivy.uix.label import Label
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.textinput import TextInput
 from kivy.config import Config
+from kivy.uix.checkbox import CheckBox
 #from kivy.core.window import Window
 
 # Set the size of the main window.
@@ -52,8 +56,8 @@ class LoadDialog(BoxLayout):
         """ Method to draw GUI elements.
         """
         filechooser = FileChooserListView(path=self.default_path)
-        ok_button = Button(text="OK", on_press=partial(self.set_source_file, filechooser), size_hint_y = 0.1)
-        cancel_button = Button(text="Cancel", on_press=self.cancel, size_hint_y = 0.1)
+        ok_button = Button(text="OK", on_press=partial(self.set_source_file, filechooser))
+        cancel_button = Button(text="Cancel", on_press=self.cancel)
         button_row = BoxLayout(size_hint_y=None, height=30)
         button_row.add_widget(ok_button)
         button_row.add_widget(cancel_button)
@@ -75,6 +79,7 @@ class SaveDialog(BoxLayout):
         global root
         self.size = root.size
         self.pos = root.pos
+        self.default_path = root.default_path
         self.cancel = cancel
         self.set_target_file = set_target_file
         self.build_window()
@@ -84,14 +89,16 @@ class SaveDialog(BoxLayout):
         """ Method to draw GUI elements.
         """
         filechooser = FileChooserListView(path=self.default_path)
-        text_input = TextInput(text="", size_hint_y=None, height=30, multiline=False)
-        ok_button = Button(text="OK", on_press=partial(self.set_target_file, filechooser, text_input), size_hint_y = 0.1)
-        cancel_button = Button(text="Cancel", on_press=self.cancel, size_hint_y = 0.1)
+        text_input = TextInput(text="", multiline=False)
+        ok_button = Button(text="OK", on_press=partial(self.set_target_file, filechooser, text_input))
+        cancel_button = Button(text="Cancel", on_press=self.cancel)
         button_row = BoxLayout(size_hint_y=None, height=30)
         button_row.add_widget(ok_button)
         button_row.add_widget(cancel_button)
+        text_input_row = BoxLayout(size_hint_y=None, height=30)
+        text_input_row.add_widget(text_input)
         self.add_widget(filechooser)
-        self.add_widget(text_input)
+        self.add_widget(text_input_row)
         self.add_widget(button_row)
 
 
@@ -134,6 +141,9 @@ class RootWidget(BoxLayout):
         self._popup = Popup(title="Set Target File 2", content=content,
                             size_hint=(0.9, 0.9))
         self._popup.open()
+        
+    def close_app(self, *args):
+        self.root_app.stop(self)
 
     def set_source_file(self, filechooser, *args):
         """ Called by LoadDialog to set the path and filename of the source file.
@@ -173,6 +183,9 @@ class RootWidget(BoxLayout):
         self.message_label.text = "Ready to split file"
         self.dismiss_popup()
 
+    def set_root_app(self, root_app):
+        self.root_app = root_app
+
 
     def build_main_window(self):
         """ Method to draw GUI elements.
@@ -189,12 +202,23 @@ class RootWidget(BoxLayout):
         execute_button = Button(text="Split File", on_press=self.split_file,
                                 size_hint_x=None, width=100, size_hint_y=None, height=30,
                                 pos_hint={'y': 0, 'center_x': .5})
+        exit_button = Button(text="Exit", on_press=self.close_app,
+                                size_hint_x=None, width=100, size_hint_y=None, height=30,
+                                pos_hint={'y': 0, 'center_x': .5})
         self.message_label = Label(text="Choose file to split") # Message prompt to tell user what to do next.
+        append_label = Label(text="Append", size_hint_x=0.4)
+        self.append_checkbox = CheckBox(active="True", size_hint_x=0.05)
+        spacer_label = Label(text="")
+        checkbox_container = BoxLayout(padding=[10,0,5,0])
+        checkbox_container.add_widget(self.append_checkbox)
+        checkbox_container.add_widget(append_label)
+        checkbox_container.add_widget(spacer_label)
         source_row = BoxLayout(orientation="horizontal", size_hint_y=0.15)
         target1_row = BoxLayout(orientation="horizontal", size_hint_y=0.15)
         target2_row = BoxLayout(orientation="horizontal", size_hint_y=0.15)
         execute_row = BoxLayout(orientation="horizontal", size_hint_y=0.15)
-        message_row = BoxLayout(orientation="horizontal", size_hint_y=0.4)
+        exit_row = BoxLayout(orientation="horizontal", size_hint_y=0.15)
+        message_row = BoxLayout(orientation="horizontal", size_hint_y=0.25)
         source_row.add_widget(source_button)
         source_row.add_widget(self.source_label)
         target1_row.add_widget(target1_button)
@@ -202,11 +226,14 @@ class RootWidget(BoxLayout):
         target2_row.add_widget(target2_button)
         target2_row.add_widget(self.target2_label)
         execute_row.add_widget(execute_button)
+        execute_row.add_widget(checkbox_container)
+        exit_row.add_widget(exit_button)
         message_row.add_widget(self.message_label)
         self.add_widget(source_row)
         self.add_widget(target1_row)
         self.add_widget(target2_row)
         self.add_widget(execute_row)
+        self.add_widget(exit_row)
         self.add_widget(message_row)
 
 
@@ -221,13 +248,17 @@ class RootWidget(BoxLayout):
             file will be stored in the array "odd_lines" while the second line
             will be stored in "even_lines".
         """
+        if root.append_checkbox.active == True:
+            open_flag = "a"
+        else:
+            open_flag = "w"
         with open(self.source_filename) as stream_in:
             lines = stream_in.readlines()
         odd_lines, even_lines = lines[::2], lines[1::2]
-        with open(self.target1_filename, 'w') as stream_out1:
+        with open(self.target1_filename, open_flag) as stream_out1:
             for odd_line in odd_lines:
                 stream_out1.write(odd_line)
-        with open(self.target2_filename, 'w') as stream_out2:
+        with open(self.target2_filename, open_flag) as stream_out2:
             for even_line in even_lines:
                 stream_out2.write(even_line)            
         self.message_label.text = "File split completed!"
@@ -236,6 +267,7 @@ class RootWidget(BoxLayout):
 class FileSplitterApp(App):
     def build(self):
         self.root_widget = RootWidget()
+        self.root_widget.set_root_app(self)
         return self.root_widget
 
 
