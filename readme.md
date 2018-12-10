@@ -1,4 +1,4 @@
-#Various utility applications written in Kivy
+# Various utility applications written in Kivy
 
 A collection of simple utility applications written in Kivy.<br />
 
